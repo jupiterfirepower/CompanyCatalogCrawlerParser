@@ -1,0 +1,10 @@
+C:\Users\olehp\source\repos\CrawlerParser\CrawlerParser\bin\Debug\netcoreapp2.2\CrawlerParser.deps.json
+C:\Users\olehp\source\repos\CrawlerParser\CrawlerParser\bin\Debug\netcoreapp2.2\CrawlerParser.runtimeconfig.json
+C:\Users\olehp\source\repos\CrawlerParser\CrawlerParser\bin\Debug\netcoreapp2.2\CrawlerParser.runtimeconfig.dev.json
+C:\Users\olehp\source\repos\CrawlerParser\CrawlerParser\bin\Debug\netcoreapp2.2\CrawlerParser.dll
+C:\Users\olehp\source\repos\CrawlerParser\CrawlerParser\obj\Debug\netcoreapp2.2\CrawlerParser.AssemblyInfoInputs.cache
+C:\Users\olehp\source\repos\CrawlerParser\CrawlerParser\obj\Debug\netcoreapp2.2\CrawlerParser.AssemblyInfo.fs
+C:\Users\olehp\source\repos\CrawlerParser\CrawlerParser\bin\Debug\netcoreapp2.2\CrawlerParser.pdb
+C:\Users\olehp\source\repos\CrawlerParser\CrawlerParser\obj\Debug\netcoreapp2.2\CrawlerParser.dll
+C:\Users\olehp\source\repos\CrawlerParser\CrawlerParser\obj\Debug\netcoreapp2.2\CrawlerParser.pdb
+C:\Users\olehp\source\repos\CrawlerParser\CrawlerParser\obj\Debug\netcoreapp2.2\CrawlerParser.fsprojAssemblyReference.cache
