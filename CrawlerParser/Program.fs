@@ -985,7 +985,10 @@ let getHtmlAsStringAsync(url:string) =
             let statusCode = response.StatusCode |> int
             let mutable redirectUri:Uri = null
             let location = if response.Headers.Location <> null then response.Headers.Location.ToString() else String.Empty
-            if (statusCode >= 300 && statusCode <= 399) && not(String.IsNullOrEmpty(location)) && location <> url && (url.Length <= 80 && location.Length <= 80) && not(location.StartsWith("://")) then
+            if (statusCode >= 300 && statusCode <= 399) 
+                && not(String.IsNullOrEmpty(location)) && location <> url 
+                && ((url.Length <= 80 && location.Length <= 80) || (url.Length > 80 && location.Length > 80)) 
+                && not(location.StartsWith("://")) then
                 redirectUri <- response.Headers.Location
                 redirectUri <- if not(redirectUri.IsAbsoluteUri) then new Uri(new Uri((new Uri(url)).GetLeftPart(UriPartial.Authority)), redirectUri) else redirectUri 
                 printfn "getHtmlAsStringAsync(url:string) Redirecting to %s" (redirectUri.ToString())
