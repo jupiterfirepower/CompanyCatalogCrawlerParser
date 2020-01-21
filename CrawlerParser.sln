@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.29306.81
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "CrawlerParser", "CrawlerParser\CrawlerParser.fsproj", "{095C5339-A440-40F7-8891-8E240DA95671}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "CrawlerParser", "CrawlerParser\CrawlerParser.fsproj", "{095C5339-A440-40F7-8891-8E240DA95671}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
