@@ -1427,6 +1427,7 @@ let main argv =
                                     && not(x.BadUrl) 
                                     && not(x.EmailProcessed)                                
                            )
+            |> Seq.distinctBy (fun x -> x.SiteUrl) 
 
         printfn "Companies Count for processing(filtered) - %d" (Seq.length clenght)
         if (Seq.length clenght) = 0 then
@@ -1440,6 +1441,7 @@ let main argv =
                                     && not(x.BadUrl) && not(x.EmailProcessed) 
                                     && notSocialNetwork(x.SiteUrl)
                                      )
+            |> Seq.distinctBy (fun x -> x.SiteUrl)   
             |> Seq.take 100000
             |> Seq.map ( fun x -> asyncEmailCrawler(x.SiteUrl, x.CompanyId) )
             |> Seq.chunkBySize 100 
