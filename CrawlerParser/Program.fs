@@ -959,17 +959,18 @@ let customized (req : HttpWebRequest) =
 let getHtmlAsStringAsync(url:string) = 
     let linkRedirection = ConcurrentCollections.ConcurrentHashSet<string>()
     Encoding.RegisterProvider(CodePagesEncodingProvider.Instance)
+    ServicePointManager.Expect100Continue <- false;
+    ServicePointManager.SecurityProtocol <- SecurityProtocolType.Tls13 ||| SecurityProtocolType.Tls12 ||| SecurityProtocolType.Tls11 ||| SecurityProtocolType.Tls;
     
     let rec getHtmlAsync (url:string) = 
         async {
-            ServicePointManager.Expect100Continue <- false;
-            ServicePointManager.SecurityProtocol <- SecurityProtocolType.Tls13 ||| SecurityProtocolType.Tls12 ||| SecurityProtocolType.Tls11 ||| SecurityProtocolType.Tls;
-
             use httpClientHandler = new HttpClientHandler();
             httpClientHandler.AutomaticDecompression <- (DecompressionMethods.Deflate ||| DecompressionMethods.GZip ||| DecompressionMethods.Brotli)
             httpClientHandler.AllowAutoRedirect <- true
             httpClientHandler.MaxAutomaticRedirections <- 20
             httpClientHandler.MaxConnectionsPerServer <- 20
+            httpClientHandler.UseProxy <- false
+            httpClientHandler.Proxy <- null;
 
             // Return `true` to allow certificates that are untrusted/invalid
             httpClientHandler.ServerCertificateCustomValidationCallback <-
