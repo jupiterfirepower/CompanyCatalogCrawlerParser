@@ -222,7 +222,7 @@ let main _ =
                                                        // Parse Attachments
                                                        let atts = oMail.Attachments
                                                        for cur in atts do
-                                                           let fileName = sprintf @"E:\EMAILTMP\TMPIMG\%s" cur.Name
+                                                           let fileName = sprintf @"%s\%s" rootDirForEmailImages cur.Name
                                                            let attachment = new System.Net.Mail.Attachment(fileName)
                                                            attachment.Name <- cur.Name
                                                            attachment.ContentId <- cur.ContentID
