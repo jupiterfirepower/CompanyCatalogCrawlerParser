@@ -42,6 +42,9 @@ DROP TABLE [dbo].[tblIndustryCategory];
 IF OBJECT_ID(N'dbo.tblRegion', N'U') IS NOT NULL
 DROP TABLE [dbo].[tblRegion];
 
+IF OBJECT_ID(N'dbo.tblEmailSendedReport', N'U') IS NOT NULL
+DROP TABLE [dbo].[tblEmailSendedReport];
+
 IF OBJECT_ID(N'dbo.tblCountry', N'U') IS NULL
 BEGIN;
 
@@ -149,11 +152,14 @@ BEGIN;
 CREATE TABLE [dbo].[tblEmail](
 	[EmailId] [int] IDENTITY(1,1) NOT NULL,
 	[Email] [nvarchar](150) NOT NULL,
+	[BadIgnoreEmail] [bit] NOT NULL,
  CONSTRAINT [PK_tblEmail] PRIMARY KEY CLUSTERED 
 (
 	[EmailId] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
+
+ALTER TABLE [dbo].[tblEmail] ADD  CONSTRAINT [DF_tblEmail_BadIgnoreEmail]  DEFAULT ((0)) FOR [BadIgnoreEmail]
 
 END;
 
@@ -324,6 +330,23 @@ REFERENCES [dbo].[tblCompany] ([CompanyId])
 ALTER TABLE [dbo].[tblCityCompany] CHECK CONSTRAINT [FK_tblCityCompany_tblCompany]
 
 END;
+
+IF OBJECT_ID(N'dbo.tblEmailSendedReport', N'U') IS NULL
+ 
+BEGIN;
+
+CREATE TABLE [dbo].[tblEmailSendedReport](
+	[EmailFileName] [nvarchar](260) NOT NULL,
+	[LastEmailIdSended] [int] NOT NULL,
+ CONSTRAINT [PK_tblEmailSendedReport] PRIMARY KEY CLUSTERED 
+(
+	[EmailFileName] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+
+END;
+
+
 
 
 

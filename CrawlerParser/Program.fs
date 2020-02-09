@@ -128,6 +128,7 @@ type Company =
                    and set(url: string) = x.url <- url
      end
 
+
 type CompanyEmail = 
     {
         CompanyId: int
@@ -140,6 +141,7 @@ type CompanyDbItem =
         SiteUrl: string
         BadUrl:bool
         EmailProcessed:bool
+        EmailFinded:bool
     }
 
 type CountryItem = 
@@ -209,6 +211,76 @@ let getDivRow (html:HtmlDocument, resultList:List<TreeNode>) =
                                                                        resultList.Add(TreeNode(!nodeHrefId, name.Trim(), !nodeId, url.Trim(), "77"))  )   
                                    )
                          ) 
+
+(*let getNovCategoryLinks (html:HtmlDocument, baseUrl: string, cityCode:string) = 
+    let rootNodeId = ref 0
+    let nodeId = ref 1000
+    let nodeHrefId = ref 100000
+    let resultList = List<TreeNode>()
+    html.Descendants ["div"]
+    |> Seq.iter (fun x -> 
+                         if x.HasClass("cats-list row") then 
+                            match x.TryGetAttribute("class") with
+                            | None -> printfn("ignore header")
+                            | Some att ->
+                                match att.Value() with
+                                | "cats-list row" -> x.Descendants ["a"]
+                                                     |> Seq.iter (fun l-> if l.HasClass("show_all") then 
+                                                                                       let doc = HtmlDocument.Load((sprintf "%s%s" baseUrl (l.AttributeValue("href").Trim())))
+                                                                                       doc.Descendants ["div"]
+                                                                                       |> Seq.iter (fun n -> if n.HasClass("cats-list row") then
+                                                                                                                n.Descendants ["a"]
+                                                                                                                |> Seq.iter (fun a -> rootNodeId := !rootNodeId + 1
+                                                                                                                                      resultList.Add(TreeNode(rootNodeId, a.InnerText(), !nodeId, a.AttributeValue("href"), cityCode))
+                                                                                                   )
+                                                                                                                                    )
+                                                                                   
+                                                     ))
+                                | _ -> printfn("ignore header")
+                         
+                         ) *)
+
+let getNovCategoryLinks (html:HtmlDocument, baseUrl: string, cityCode:string) = 
+    let rootNodeId = ref 0
+    let nodeHrefId = ref 100000
+    let resultList = List<TreeNode>()
+    html.Descendants ["div"]
+    |> Seq.iter (fun x -> 
+                         if x.HasClass("cats-list row") then 
+                            x.Descendants ["div"]
+                            |> Seq.iter (fun c -> if c.HasClass("col-xs-12 col-sm-6 col-md-6 col-lg-4") then 
+                                                     c.Descendants ["h3"] 
+                                                     |> Seq.iter (fun h -> h.Descendants ["a"] 
+                                                                           |> Seq.iter(fun c -> rootNodeId := !rootNodeId + 1
+                                                                                                resultList.Add(TreeNode(!rootNodeId, c.InnerText(), 0, null, cityCode))
+                                                                                      )
+                                                                 )
+                                                     c.Descendants ["a"]
+                                                     |> Seq.iter (fun l -> nodeHrefId := !nodeHrefId + 1
+                                                                           resultList.Add(TreeNode(!nodeHrefId, l.InnerText(), !rootNodeId, l.AttributeValue("href"), cityCode))
+                                                                           if l.HasClass("show_all") then 
+                                                                               let chref = l.AttributeValue("href").Trim().Replace("//","/")
+
+                                                                               let mutable url:string = null
+                                                                               if baseUrl.EndsWith("/") then
+                                                                                  url <- (sprintf "%s%s" (baseUrl.TrimEnd("/".ToCharArray())) (chref)) 
+                                                                               else
+                                                                                  url <- (sprintf "%s%s" baseUrl (chref)) 
+                                                                               let doc = HtmlDocument.Load(url)
+                                                                               doc.Descendants ["div"]
+                                                                               |> Seq.iter (fun n -> if n.HasClass("cat-item") then
+                                                                                                        n.Descendants ["a"]
+                                                                                                        |> Seq.iter (fun a -> nodeHrefId := !nodeHrefId + 1
+                                                                                                                              let trNode = TreeNode(!nodeHrefId , a.InnerText(), !rootNodeId, a.AttributeValue("href"), cityCode)
+                                                                                                                              if not(resultList.Exists(fun item -> item.Name = a.InnerText() && item.CityCode = cityCode && item.ParentId = !rootNodeId && item.Href = a.AttributeValue("href") )) then 
+                                                                                                                                 resultList.Add(trNode)
+                                                                                                                     )
+                                                                                           )
+                                                                   )
+                                        )
+                            
+                         ) 
+    resultList
 
 let getCategoryLinks (html:HtmlDocument, baseUrl: string, cityCode:string) =
     let rootNodeId = ref 0
@@ -369,6 +441,64 @@ let getDivCompanies (html:HtmlDocument, resultList:List<Company>, categoryId:int
                                                      )
                              resultList.Add(company)
                              )
+
+let getNovDivCompanies (html:HtmlDocument, resultList:List<Company>, categoryId:int) = 
+    let nodeId = ref 0
+    let links = html.Descendants ["a"]
+    html.Descendants ["div"]
+    |> Seq.iter (fun x -> if x.HasClass("org") then 
+                             nodeId := !nodeId + 1
+                             let companyName = x.Descendants ["h3"] |> Seq.last
+                             let site = x.Descendants ["a"] |> Seq.last
+                             let mutable company = Company(!nodeId, categoryId, companyName.InnerText(), null, null, null)
+                             company.Url <- site.InnerText().Trim()
+                             
+                             let data = x.Descendants ["ul"]
+                             data
+                             |> Seq.iter(fun n -> if n.HasClass("address") then
+                                                     let mutable key:string = null
+                                                     let mutable value:string = null
+                                                     n.Descendants ["p"] 
+                                                     |> Seq.iter(fun m -> let atrv = m.AttributeValue("data-lnk")
+                                                                          if atrv <> null && not(String.IsNullOrEmpty(atrv)) then
+                                                                             company.Url <- decodeBase64(atrv.TrimStart("b'".ToCharArray()).TrimEnd("'".ToCharArray()))
+
+                                                                          m.Descendants ["span"] 
+                                                                          |> Seq.iter(fun sp -> if sp.HasClass("nm") then
+                                                                                                   key <- sp.InnerText().Trim()
+                                                                                                if sp.HasClass("value") then
+                                                                                                   value <- sp.InnerText().Trim()
+                                                                                                    )
+
+                                                                          if key <> null && value <> null then
+                                                                            match key with
+                                                                            | "адрес:" -> company.Address <- value
+                                                                            | "телефон:" -> company.Phone <- value
+                                                                            | "график (часы) работы:" -> company.Timework <- value
+                                                                            | "электронная почта:" -> ()
+                                                                            | _ -> ()
+                                                                 )
+                                                     resultList.Add(company)
+                                          )
+                 )
+
+let getCities (html:HtmlDocument) = 
+    let mutable tableNum:int=0
+    let resultList = List<CityItem>()
+    html.Descendants ["table"]
+    |> Seq.iter (fun x -> if x.HasAttribute("dir", "ltr") && x.HasAttribute("style", "table-layout:fixed;font-size:10pt;font-family:arial,sans,sans-serif;width:0px;border-collapse:collapse;border:none") then //style="table-layout:fixed;font-size:10pt;font-family:arial,sans,sans-serif;width:0px;border-collapse:collapse;border:none"
+                             tableNum <- tableNum + 1
+                             x.Descendants ["tr"]
+                             |> Seq.iter(fun tr -> if tr.HasAttribute("style", "height:21px") then 
+                                                      let nodes = tr.Descendants ["td"]
+                                                      if Seq.length nodes > 2 then
+                                                         let cnode = nodes |> Seq.skip(2) |> Seq.head
+                                                         resultList.Add({ Name = cnode.InnerText().Replace("г.","").Trim(); Subordination = null; Code = string <| tableNum; Region = null })
+                                                      ()
+                                                      )
+                       
+                 )
+    resultList
   
 let getPageNumber (html:HtmlDocument, tag:string) = 
     let mutable pagen:int=0
@@ -444,7 +574,8 @@ let links (html:HtmlDocument, tagName: string) =
 
 
 [<Literal>]
-let connectionString = "Data Source=DESKTOP-M6ISP61\SQLEXPRESS; Initial Catalog=CountryDictionary;Integrated Security=True;Connect Timeout=3;Min Pool Size=100;Max Pool Size=1000;Pooling=true;"
+let connectionString = "Data Source=DESKTOP-M6ISP61\SQLEXPRESS; Initial Catalog=CountryDictionary;Integrated Security=True;Connect Timeout=3;"
+//let connectionString = "Data Source=DESKTOP-M6ISP61\SQLEXPRESS; Initial Catalog=CountryDictionary;Integrated Security=True;Connect Timeout=3;Min Pool Size=100;Max Pool Size=1000;Pooling=true;"
 //let connectionString = "Data Source=DESKTOP-M6ISP61\SQLEXPRESS; Initial Catalog=tmp;Integrated Security=True;Connect Timeout=3;Min Pool Size=100;Max Pool Size=1000;Pooling=true;"
 
 type sql = SqlDataProvider<Common.DatabaseProviderTypes.MSSQLSERVER,
@@ -592,6 +723,7 @@ let insertBulkCityData (list :seq<CityItem>) =
     )
     ctx.SubmitUpdates()
 
+(*
 let updateCompanyEmailProcessed (companyId:int, processed:bool) = 
     let TransactionOptions = { FSharp.Data.Sql.Transactions.IsolationLevel = FSharp.Data.Sql.Transactions.IsolationLevel.DontCreateTransaction; FSharp.Data.Sql.Transactions.Timeout = TimeSpan.FromSeconds(1.0)}
     try
@@ -606,7 +738,7 @@ let updateCompanyEmailProcessed (companyId:int, processed:bool) =
         ctx.SubmitUpdates()
     with
         | _ as ex -> printfn "updateCompanyBadUrl -%d error - %s" companyId ex.Message
-    
+*)    
 
 let insertCompanyEmail (list:seq<CompanyEmail>) = 
     let TransactionOptions = { FSharp.Data.Sql.Transactions.IsolationLevel = FSharp.Data.Sql.Transactions.IsolationLevel.DontCreateTransaction; FSharp.Data.Sql.Transactions.Timeout = TimeSpan.FromSeconds(1.0)}
@@ -686,13 +818,33 @@ let getCategoryId(name, cityCode) =
         exactlyOne
         }
 
+let checkCategoryCityCode(cityCode) =
+    let TransactionOptions = { FSharp.Data.Sql.Transactions.IsolationLevel = FSharp.Data.Sql.Transactions.IsolationLevel.DontCreateTransaction; FSharp.Data.Sql.Transactions.Timeout = TimeSpan.FromSeconds(1.0)}
+    let ctx = sql.GetDataContext(TransactionOptions)
+    query {
+        for category in ctx.Dbo.TblIndustryCategory do
+        select category.CityCode
+        contains cityCode
+        }
+
+
+let getCity(name) =
+    let TransactionOptions = { FSharp.Data.Sql.Transactions.IsolationLevel = FSharp.Data.Sql.Transactions.IsolationLevel.DontCreateTransaction; FSharp.Data.Sql.Transactions.Timeout = TimeSpan.FromSeconds(1.0)}
+    let ctx = sql.GetDataContext(TransactionOptions)
+    query {
+        for city in ctx.Dbo.TblCity do
+        where (city.Name = name)
+        select city
+        exactlyOne
+        }
+
 let getCompanies =
     let TransactionOptions = { FSharp.Data.Sql.Transactions.IsolationLevel = FSharp.Data.Sql.Transactions.IsolationLevel.DontCreateTransaction; FSharp.Data.Sql.Transactions.Timeout = TimeSpan.FromSeconds(1.0)}
     let ctx = sql.GetDataContext(TransactionOptions)
     query {
         for company in ctx.Dbo.TblCompany do
         select company
-        } |> Seq.map (fun x -> { CompanyId = x.CompanyId; SiteUrl = x.SiteUrl; BadUrl = x.BadUrl; EmailProcessed = x.EmailProcessed })
+        } |> Seq.map (fun x -> { CompanyId = x.CompanyId; SiteUrl = x.SiteUrl; BadUrl = x.BadUrl; EmailProcessed = x.EmailProcessed; EmailFinded = x.EmailFinded })
 
 let updateCompanyBadUrl (companyId:int, badUrl:bool, processed:bool, finded: bool) =
     let TransactionOptions = { FSharp.Data.Sql.Transactions.IsolationLevel = FSharp.Data.Sql.Transactions.IsolationLevel.DontCreateTransaction; FSharp.Data.Sql.Transactions.Timeout = TimeSpan.FromSeconds(1.0)}
@@ -710,6 +862,20 @@ let updateCompanyBadUrl (companyId:int, badUrl:bool, processed:bool, finded: boo
         ctx.SubmitUpdates()
     with
         | _ as ex -> printfn "updateCompanyBadUrl -%d error - %s" companyId ex.Message
+
+
+let updateCompanyFlags(companyId:int, badUrl:bool, processed:bool, finded: bool) =
+    do
+        use cmd = new FSharp.Data.SqlCommandProvider<"
+            UPDATE [CountryDictionary].[dbo].[tblCompany]
+            SET [EmailProcessed]=@processed,
+                [BadUrl]=@badUrl,
+                [EmailFinded]=@finded
+            
+            WHERE [CompanyId] = @companyId 
+            " , connectionString>(connectionString)
+    
+        cmd.Execute(processed = processed, badUrl = badUrl, finded = finded, companyId = companyId) |> ignore
     
 
 let trunc(str:string) = 
@@ -836,6 +1002,7 @@ let contactPage(str:string) =
      || str.Contains("sendmail")
      || str.Contains("page_id")
      || (str.Contains("index.php?") && not(str.Contains("category")) && not(str.Contains("product")))
+     || (str.Contains("index.php?") && not(str.Contains("catalog")) && not(str.Contains("SECTION")))
      || (str.Contains("index.php?") && str.Contains("show") && not(str.Contains("page")))
      )
 
@@ -988,7 +1155,7 @@ let getHtmlAsStringAsync(url:string) =
             if (statusCode >= 300 && statusCode <= 399) 
                 && not(String.IsNullOrEmpty(location)) && location <> url 
                 && ((url.Length <= 80 && location.Length <= 80) || (url.Length > 80) ) 
-                && not(location.StartsWith("://")) then
+                && not(location.StartsWith("://") && not(location.EndsWith("404.html")) ) then
                 redirectUri <- response.Headers.Location
                 redirectUri <- if not(redirectUri.IsAbsoluteUri) then new Uri(new Uri((new Uri(url)).GetLeftPart(UriPartial.Authority)), redirectUri) else redirectUri 
                 printfn "getHtmlAsStringAsync(url:string) Redirecting to %s" (redirectUri.ToString())
@@ -997,7 +1164,7 @@ let getHtmlAsStringAsync(url:string) =
                     return content
                 else
                     linkRedirection.Clear()
-                    return raise (System.ArgumentException("Cycled redirect location detected!"))
+                    return raise <| System.ArgumentException("Cycled redirect location detected!")
             else 
                 response.EnsureSuccessStatusCode () |> ignore
                 let! content = response.Content.ReadAsStringAsync() |> Async.AwaitTask
@@ -1127,7 +1294,8 @@ let asyncEmailCrawler (url:string, companyId: int) =
                                                     companyEmailBag.Add({ CompanyId = companyId; Email=e }) )
 
                     if not(Seq.isEmpty mailto) && (Seq.length mailto) > 1 then
-                        updateCompanyEmailProcessed(companyId, true)
+                        //updateCompanyEmailProcessed(companyId, true)
+                        updateCompanyFlags (companyId, false, true, true)
                     else
                         let linksSearch = FindLinksRegExp(html, baseUrl)
 
@@ -1153,26 +1321,35 @@ let asyncEmailCrawler (url:string, companyId: int) =
 
                         if ( not(Seq.isEmpty dataLink) || (Seq.length data) <> 0 || not(Seq.isEmpty mailto) || not(Seq.isEmpty emails) ) then
                              updateCompanyBadUrl (companyId, false, true, true)
+                             updateCompanyFlags (companyId, false, true, true)
                         else
-                            updateCompanyBadUrl (companyId, false, true, false);
+                            updateCompanyBadUrl (companyId, false, true, false)
+                            updateCompanyFlags (companyId, false, true, false)
 
                         //if (Seq.isEmpty dataLink) && (Seq.isEmpty data) && (Seq.isEmpty mailto) && (Seq.isEmpty emails) then
                         //    randomCrawl url companyId visitedEmailExtractor |> Async.RunSynchronously *)
                 else
-                    printfn "asyncEmailCrawler bad url - %s " url 
+                    printfn "asyncEmailCrawler bad empty url. CompanyId - %d" companyId
                     updateCompanyBadUrl(companyId, true, true, false)
+                    updateCompanyFlags(companyId, true, true, false)
+            else
+                updateCompanyFlags(companyId, true, true, false)
         with
         | :? System.Net.WebException as ex ->
                 printfn "asyncEmailCrawler w url - %s error - %s" url  (trunc(ex.Message))
                 updateCompanyBadUrl (companyId, true, true, false)
+                updateCompanyFlags (companyId, true, true, false)
         | :? HttpRequestException as ex -> 
                 printfn "asyncEmailCrawler h url - %s error - %s" url (trunc(ex.Message))
                 updateCompanyBadUrl (companyId, true, true, false)
+                updateCompanyFlags (companyId, true, true, false)
         | :? System.Net.CookieException as ex ->
                 printfn "asyncEmailCrawler c url - %s error - %s" url (trunc(ex.Message))
                 updateCompanyBadUrl (companyId, true, true, false)
+                updateCompanyFlags (companyId, true, true, false)
         | _ as ex -> printfn "asyncEmailCrawler g url - %s error - %s" url (trunc(ex.Message))
                      updateCompanyBadUrl (companyId, true, true, false)
+                     updateCompanyFlags (companyId, true, true, false)
     }
 
 let emailCrawler (url:string, companyId: int) = 
@@ -1224,8 +1401,25 @@ let trimEmailWithSubject(email:string)=
     else
        email
 
+let translitCyrillicToLatin(words:string)=
+    let decoder = [ ("а", "a");("б", "b");("в", "v");("г", "g");("д", "d");("е", "e");("ё", "yo");("ж", "zh");
+                    ("з", "z"); ("и", "i"); ("й", "j"); ("к", "k"); ("л", "l"); ("м", "m"); ("н", "n");
+                    ("о", "o"); ("п", "p"); ("р", "r"); ("с", "s"); ("т", "t"); ("у", "u"); ("ф", "f");
+                    ("х", "h"); ("ц", "ts"); ("ч", "ch"); ("ш", "sh"); ("щ", "sch"); ("ъ", ""); ("ы", "i");
+                    ("ь", ""); ("э", "e"); ("ю", "yu"); ("я", "ya"); ("А", "A"); ("Б", "B"); ("В", "V");
+                    ("Г", "G"); ("Д", "D"); ("Е", "E"); ("Ё", "Yo"); ("Ж", "Zh");("З", "Z"); ("И", "I");
+                    ("Й", "J"); ("К", "K"); ("Л", "L"); ("М", "M"); ("Н", "N"); ("О", "O"); ("П", "P");
+                    ("Р", "R"); ("С", "S"); ("Т", "T"); ("У", "U"); ("Ф", "F"); ("Х", "H"); ("Ц", "TS");
+                    ("Ч", "Ch"); ("Ш", "Sh"); ("Щ", "Sch");("Ъ", ""); ("Ы", "I"); ("Ь", ""); ("Э", "E");
+                    ("Ю", "Yu"); ("Я", "Ya"); ("-", "-"); (" ", "-");]
+    let mutable result:string=""
+    for char in words do
+        let (_, latin) = decoder |> List.find (fun (cyr, _) -> cyr = (sprintf "%c" char))
+        result <- result + latin
+    result
+
 [<EntryPoint>]
-let main argv =
+let main _ =
     System.AppDomain.CurrentDomain.UnhandledException.AddHandler(
         fun _ (args:System.UnhandledExceptionEventArgs) ->
            lock monitor (fun () ->
@@ -1233,16 +1427,9 @@ let main argv =
               )
     )
 
-    Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-
-    //let res = decodeBase64 "aHR0cDovL3d3dy4xMTJzdG8ucnU="
-
-    //let dt = System.Convert.ToBase64String [|"https://sto-parnas.ru/".getBy|]
-    //emailCrawler("http://www.bit-medic.ru/", 127)
-    //emailCrawler("https://www.mebell.ru", 127)
-    //let companyList = new List<Company>()
-    //let doc = HtmlDocument.Load("https://spb.spravker.ru/shinomontazh/")
-    //getDivCompanies(doc, companyList, 12)
+    Encoding.RegisterProvider(CodePagesEncodingProvider.Instance)
+    ServicePointManager.Expect100Continue <- false
+    ServicePointManager.SecurityProtocol <- SecurityProtocolType.Tls13 ||| SecurityProtocolType.Tls12 ||| SecurityProtocolType.Tls11 ||| SecurityProtocolType.Tls
 
     // Moscow
     let cityCodeMoscow = "77"
@@ -1403,9 +1590,309 @@ let main argv =
         swes.Stop()
         printfn "Save company info for CityCode - %s Time - %s" cityCodeSanktPeterburg (swes.Elapsed.ToString(@"dd\.hh\:mm\:ss\.ff"))
     with 
-        | _ as ex -> printfn "error:  %s" ex.Message
+        | _ as ex -> printfn "error:  %s" ex.Message 
+
+    // Novosibirsk
+    let cityCodeNovosibirsk = "54"
+    let baseUrlCityCode54 = "https://novosibirsk.jsprav.ru"
+    let doc = HtmlDocument.Load(baseUrlCityCode54)
+    let treeNodeList = getNovCategoryLinks (doc, baseUrlCityCode54, cityCodeNovosibirsk)
+
+    // load header category for citycode 54 (Novosibirsk)
+    List.ofSeq treeNodeList 
+    |> Seq.filter (fun x -> x.ParentId = 0)
+    |> Seq.iter (fun x -> insertCategoryData (x.Name, -1, x.Href, x.CityCode) )
+    
+    // load category with url data for citycode 54 (Novosibirsk)
+    List.ofSeq treeNodeList 
+    |> Seq.filter (fun x -> x.Id >= 100000 && x.ParentId > 0 )
+    |> Seq.iter (fun x -> let item = List.ofSeq treeNodeList |> Seq.filter (fun m -> m.Id = x.ParentId) |>  Seq.exactlyOne
+                          let id = (getCategoryId (item.Name, cityCodeNovosibirsk)).IndustryCategoryId
+                          insertCategoryData (x.Name, id, (sprintf "%s%s" baseUrlCityCode54 x.Href), x.CityCode))
 
     
+    let swn = Stopwatch()
+    swn.Start()
+
+    // load company info from pages citycode 54 (Novosibirsk)
+    printfn "Novosibirsk Category Number - %d" ((List.ofSeq treeNodeList |> Seq.filter (fun x -> x.Id >= 100000 && x.ParentId > 0 )) |> Seq.length)
+    let compList = List<Company>()
+    List.ofSeq treeNodeList 
+    |> Seq.filter (fun x -> x.Id >= 100000 && x.ParentId > 0 )
+    |> Seq.iter (fun x ->  let category = (getCategoryId (x.Name, cityCodeNovosibirsk))
+                           let id = category.IndustryCategoryId
+                           if not category.CompanyProcessed then
+                               let mutable pnum:int=0
+                               let currentUrl = (sprintf "%s%s" baseUrlCityCode54 x.Href)
+                               try
+                                   let retry = RetryBuilder(3, TimeSpan.FromSeconds(1.))
+                                   retry {
+                                       let companyHtml = HtmlDocument.Load(currentUrl)
+                                       pnum <- getPageNumber(companyHtml, "ul") 
+                                       printfn "currentUrl - %s, page number - %d" currentUrl pnum
+                                       getNovDivCompanies (companyHtml, compList, id) 
+                                   }
+                                   System.Threading.Thread.Sleep(1000);
+                               with
+                                   | Failure(msg) -> printfn "url - %s error:  %s" currentUrl msg;
+
+                               let mutable curPnum:int = 2
+                               while curPnum <= pnum do
+                                  let curl = (sprintf "%s%s?p-%d" baseUrlCityCode54 x.Href curPnum)
+                                  try
+                                      let retry = RetryBuilder(3, TimeSpan.FromSeconds(1.))
+                                      retry {
+                                          let companyHtml = HtmlDocument.Load(curl)
+                                          getNovDivCompanies (companyHtml, compList, id) 
+                                          printfn "currentUrl - %s, current page number - %d" curl curPnum
+                                          curPnum<-curPnum+1
+                                      }
+                                      System.Threading.Thread.Sleep(3000);
+                                  with
+                                      | Failure(msg) -> printfn "url - %s error:  %s" curl msg
+                                                        curPnum<-curPnum+1
+                               updateCategoryCompanyProcessed (id, true)
+                )
+    swn.Stop()
+    printfn "Load company info from pages citycode 54(Novosibirsk) Time - %s" (swn.Elapsed.ToString(@"dd\.hh\:mm\:ss\.ff"))
+
+    try
+        let swes = Stopwatch()
+        swes.Start()
+
+        printfn "Company Count %d for CityCode - %s" compList.Count cityCodeNovosibirsk
+        insertBulkCompanyData(compList)
+
+        swes.Stop()
+        printfn "Save company info for CityCode - %s Time - %s" cityCodeNovosibirsk (swes.Elapsed.ToString(@"dd\.hh\:mm\:ss\.ff"))
+    with 
+        | _ as ex -> printfn "error:  %s" ex.Message
+
+    // Novgorod
+    (*let cityCodeNovgorod = "52"
+    let baseUrlCityCode52 = "https://nizhnij-novgorod.jsprav.ru"
+    let doc = HtmlDocument.Load(baseUrlCityCode52)
+    let treeNodeList = getNovCategoryLinks (doc, baseUrlCityCode52, cityCodeNovgorod)
+
+    // load header category for citycode 52 (Novgorod)
+    List.ofSeq treeNodeList 
+    |> Seq.filter (fun x -> x.ParentId = 0)
+    |> Seq.iter (fun x -> insertCategoryData (x.Name, -1, x.Href, x.CityCode) )
+    
+    // load category with url data for citycode 52 (Novgorod)
+    List.ofSeq treeNodeList 
+    |> Seq.filter (fun x -> x.Id >= 100000 && x.ParentId > 0 )
+    |> Seq.iter (fun x -> let item = List.ofSeq treeNodeList |> Seq.filter (fun m -> m.Id = x.ParentId) |>  Seq.exactlyOne
+                          let id = (getCategoryId (item.Name, cityCodeNovgorod)).IndustryCategoryId
+                          insertCategoryData (x.Name, id, (sprintf "%s%s" baseUrlCityCode52 x.Href), x.CityCode))
+
+    
+    let swn = Stopwatch()
+    swn.Start()
+
+    // load company info from pages citycode 54 (Novgorod)
+    printfn "Novgorod Category Number - %d" ((List.ofSeq treeNodeList |> Seq.filter (fun x -> x.Id >= 100000 && x.ParentId > 0 )) |> Seq.length)
+    let compList = List<Company>()
+    List.ofSeq treeNodeList 
+    |> Seq.filter (fun x -> x.Id >= 100000 && x.ParentId > 0 )
+    |> Seq.iter (fun x ->  let category = (getCategoryId (x.Name, cityCodeNovgorod))
+                           let id = category.IndustryCategoryId
+                           if not category.CompanyProcessed then
+                               let mutable pnum:int=0
+                               let currentUrl = (sprintf "%s%s" baseUrlCityCode52 x.Href)
+                               try
+                                   let retry = RetryBuilder(3, TimeSpan.FromSeconds(1.))
+                                   retry {
+                                       let companyHtml = HtmlDocument.Load(currentUrl)
+                                       pnum <- getPageNumber(companyHtml, "ul") 
+                                       printfn "currentUrl - %s, page number - %d" currentUrl pnum
+                                       getNovDivCompanies (companyHtml, compList, id) 
+                                   }
+                                   System.Threading.Thread.Sleep(1000);
+                               with
+                                   | Failure(msg) -> printfn "url - %s error:  %s" currentUrl msg;
+
+                               let mutable curPnum:int = 2
+                               while curPnum <= pnum do
+                                  let curl = (sprintf "%s%s?p-%d" baseUrlCityCode52 x.Href curPnum)
+                                  try
+                                      let retry = RetryBuilder(3, TimeSpan.FromSeconds(1.))
+                                      retry {
+                                          let companyHtml = HtmlDocument.Load(curl)
+                                          getNovDivCompanies (companyHtml, compList, id) 
+                                          printfn "currentUrl - %s, current page number - %d" curl curPnum
+                                          curPnum<-curPnum+1
+                                      }
+                                      System.Threading.Thread.Sleep(3000);
+                                  with
+                                      | Failure(msg) -> printfn "url - %s error:  %s" curl msg
+                                                        curPnum<-curPnum+1
+
+                               updateCategoryCompanyProcessed (id, true)
+                )
+    swn.Stop()
+    printfn "Load company info from pages citycode 52(Novgorod) Time - %s" (swn.Elapsed.ToString(@"dd\.hh\:mm\:ss\.ff"))
+
+    try
+        let swes = Stopwatch()
+        swes.Start()
+
+        printfn "Company Count %d for CityCode - %s" compList.Count cityCodeNovgorod
+        insertBulkCompanyData(compList)
+
+        swes.Stop()
+        printfn "Save company info for CityCode - %s Time - %s" cityCodeNovgorod (swes.Elapsed.ToString(@"dd\.hh\:mm\:ss\.ff"))
+    with 
+        | _ as ex -> printfn "error:  %s" ex.Message
+    *) 
+
+    let listLinks =[
+                     ("https://ekaterinburg.jsprav.ru","66");
+                     ("https://kazan.jsprav.ru","16");
+                     ("https://omsk.jsprav.ru","55");
+                     ("https://chelyabinsk.jsprav.ru","74");
+                     ("https://samara.jsprav.ru","55");
+                     ("https://ufa.jsprav.ru","02");
+                     ("https://krasnoyarsk.jsprav.ru","24");
+                     ("https://voronezh.jsprav.ru","36");
+                     ("https://volgograd.jsprav.ru","59");
+                     ("https://krasnodar.jsprav.ru","23");
+                     ("https://saratov.jsprav.ru","64");
+                     ("https://tyumen.jsprav.ru","72");
+                     ("https://tolyatti.jsprav.ru","63");
+                     ("https://izhevsk.jsprav.ru","18");
+                     ("https://barnaul.jsprav.ru","22");
+                     ("https://ulyanovsk.jsprav.ru","73");
+                     ("https://irkutsk.jsprav.ru","38");
+                     ("https://habarovsk.jsprav.ru","27");
+                     ("https://yaroslavl.jsprav.ru","76");
+                     ("https://vladivostok.jsprav.ru","25");
+                     ("https://mahachkala.jsprav.ru","05");
+                     ("https://tomsk.jsprav.ru","70");
+                     ("https://orenburg.jsprav.ru","56");
+                     ("https://kemerovo.jsprav.ru","42");
+                     ("https://ryazan.jsprav.ru","62");
+                     ("https://astrahan.jsprav.ru","30");
+                     ("https://penza.jsprav.ru","58");
+                     ("https://kirov.jsprav.ru","43");
+                     ("https://lipetsk.jsprav.ru","48");
+                     ("https://balashiha.jsprav.ru","50");
+                     ("https://kaliningrad.jsprav.ru","39");
+                     ("https://tula.jsprav.ru","71");
+                     ("https://kursk.jsprav.ru","46");
+                     ("https://sochi.jsprav.ru","23");
+                     ("https://stavropol.jsprav.ru","26");
+                     ("https://ulan-ude.jsprav.ru","03");
+                     ("https://tver.jsprav.ru","69");
+                     ("https://magnitogorsk.jsprav.ru","74");
+                     ("https://ivanovo.jsprav.ru","37");
+                     ("https://kamensk-uralskij.jsprav.ru", "66");
+                     ("https://blagoveschensk.jsprav.ru", "28");
+                    ]
+    let resultlistLinks = MutableList<string * string>.empty
+    let resultProblemCityNames = MutableList<string>.empty
+    let doc = HtmlDocument.Load("http://www.statdata.ru/largest_cities_russia")
+    let resultCities = getCities(doc) |> Seq.where(fun x -> x.Code="6")
+    let resCities = resultCities |> Seq.skip(1) |> Seq.take ((Seq.length resultCities) - 2) 
+    resCities 
+    |> Seq.iter (fun x -> let mutable citytName:string=""
+                          if x.Name = "Артем" then
+                             citytName <- "Артём"
+                          else
+                             citytName <- x.Name
+                          let latinCity = translitCyrillicToLatin(x.Name)
+                          let url  = sprintf "https://%s.jsprav.ru/" latinCity
+                          try
+                             let cityCode = getCity(x.Name)
+                             let _ = HtmlDocument.Load(url) 
+                             resultlistLinks.Add((url.ToLower(),cityCode.Code)) |> ignore
+                          with 
+                              | _ -> resultProblemCityNames.Add(x.Name) |> ignore
+    )
+
+    listLinks@resultlistLinks.Value 
+    |> List.ofSeq
+    |> Seq.iter(fun (link, code)->
+        if not(checkCategoryCityCode(code)) then
+            // Novgorod
+            let cityCode  = code
+            let baseUrlByCityCode = link
+            let doc = HtmlDocument.Load(baseUrlByCityCode)
+            let treeNodeList = getNovCategoryLinks (doc, baseUrlByCityCode, cityCode)
+
+            // load header category for current citycode 
+            List.ofSeq treeNodeList 
+            |> Seq.filter (fun x -> x.ParentId = 0)
+            |> Seq.iter (fun x -> insertCategoryData (x.Name, -1, x.Href, x.CityCode) )
+        
+            // load category with url data for current citycode 
+            List.ofSeq treeNodeList 
+            |> Seq.filter (fun x -> x.Id >= 100000 && x.ParentId > 0 )
+            |> Seq.iter (fun x -> let item = List.ofSeq treeNodeList |> Seq.filter (fun m -> m.Id = x.ParentId) |>  Seq.exactlyOne
+                                  let id = (getCategoryId (item.Name, cityCode)).IndustryCategoryId
+                                  insertCategoryData (x.Name, id, (sprintf "%s%s" baseUrlByCityCode x.Href), x.CityCode))
+
+        
+            let swn = Stopwatch()
+            swn.Start()
+
+            // load company info from pages for current citycode 
+            printfn "Current Category Number - %d" ((List.ofSeq treeNodeList |> Seq.filter (fun x -> x.Id >= 100000 && x.ParentId > 0 )) |> Seq.length)
+            let compList = List<Company>()
+            List.ofSeq treeNodeList 
+            |> Seq.filter (fun x -> x.Id >= 100000 && x.ParentId > 0 )
+            |> Seq.iter (fun x ->  let category = (getCategoryId (x.Name, cityCode))
+                                   let id = category.IndustryCategoryId
+                                   if not category.CompanyProcessed then
+                                       let mutable pnum:int=0
+                                       let currentUrl = (sprintf "%s%s" (baseUrlByCityCode.TrimEnd("/".ToCharArray())) (x.Href.Replace("//","/")))
+                                       try
+                                           let retry = RetryBuilder(3, TimeSpan.FromSeconds(1.))
+                                           retry {
+                                               let companyHtml = HtmlDocument.Load(currentUrl)
+                                               pnum <- getPageNumber(companyHtml, "ul") 
+                                               printfn "currentUrl - %s, page number - %d" currentUrl pnum
+                                               getNovDivCompanies (companyHtml, compList, id) 
+                                           }
+                                           System.Threading.Thread.Sleep(1000);
+                                       with
+                                           | Failure(msg) -> printfn "url - %s error:  %s" currentUrl msg;
+
+                                       let mutable curPnum:int = 2
+                                       while curPnum <= pnum do
+                                          let curl = (sprintf "%s%s?p-%d" (baseUrlByCityCode.TrimEnd("/".ToCharArray())) (x.Href.Replace("//","/")) curPnum)
+                                          try
+                                              let retry = RetryBuilder(3, TimeSpan.FromSeconds(1.))
+                                              retry {
+                                                  let companyHtml = HtmlDocument.Load(curl)
+                                                  getNovDivCompanies (companyHtml, compList, id) 
+                                                  printfn "currentUrl - %s, current page number - %d" curl curPnum
+                                                  curPnum<-curPnum+1
+                                              }
+                                              System.Threading.Thread.Sleep(2000);
+                                          with
+                                              | Failure(msg) -> printfn "url - %s error:  %s" curl msg
+                                                                curPnum<-curPnum+1
+
+                                       updateCategoryCompanyProcessed (id, true)
+                        )
+            swn.Stop()
+            printfn "Load company info from pages citycode %s Time - %s" cityCode (swn.Elapsed.ToString(@"dd\.hh\:mm\:ss\.ff"))
+
+            try
+                let swes = Stopwatch()
+                swes.Start()
+
+                printfn "Company Count %d for CityCode - %s" compList.Count cityCode
+                insertBulkCompanyData(compList)
+
+                swes.Stop()
+                printfn "Save company info for CityCode - %s Time - %s" cityCode (swes.Elapsed.ToString(@"dd\.hh\:mm\:ss\.ff"))
+            with 
+                | _ as ex -> printfn "error:  %s" ex.Message
+    
+    )
+           
     printfn "Email crawler start. Companies Site Urls - %d" (getCompanies 
                                                             |> Seq.filter (fun x -> x.SiteUrl <> null && not(String.IsNullOrEmpty(x.SiteUrl)) && not(String.IsNullOrWhiteSpace(x.SiteUrl))) 
                                                             |> Seq.length)
@@ -1428,7 +1915,9 @@ let main argv =
                                     && not(String.IsNullOrEmpty(x.SiteUrl)) 
                                     && not(String.IsNullOrWhiteSpace(x.SiteUrl)) 
                                     && not(x.BadUrl) 
-                                    && not(x.EmailProcessed)                                
+                                    && not(x.EmailProcessed)    
+                                    && not(x.EmailFinded)
+                                    && notSocialNetwork(x.SiteUrl)
                            )
             |> Seq.distinctBy (fun x -> x.SiteUrl) 
 
@@ -1442,7 +1931,9 @@ let main argv =
                                     && not(String.IsNullOrEmpty(x.SiteUrl)) 
                                     && not(String.IsNullOrWhiteSpace(x.SiteUrl)) 
                                     && not(x.BadUrl) && not(x.EmailProcessed) 
+                                    && not(x.EmailFinded)
                                     && notSocialNetwork(x.SiteUrl)
+                                    && x.SiteUrl <> "http://www.abordageshop.ru"
                                      )
             |> Seq.distinctBy (fun x -> x.SiteUrl)   
             |> Seq.take 100000
@@ -1478,7 +1969,6 @@ let main argv =
         | _ as ex -> printfn "error:  %s" ex.Message 
 
     printfn "Finded emails - %d." (!findedEmails)
-    printfn "Finished. Company count - %d." (Seq.length resultCompany)
     System.Console.ReadLine() |> ignore
 
     0 // return an integer exit code
