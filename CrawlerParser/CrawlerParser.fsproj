@@ -6,6 +6,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="Utils.fs" />
+    <Compile Include="DomainModel.fs" />
+    <Compile Include="HtmlParsing.fs" />
+    <Compile Include="DbAccess.fs" />
+    <Compile Include="Crawler.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 
