@@ -36,7 +36,7 @@ let isNotImageExt(url:string) =
 
 let notSocialNetwork(url:string) =
     let socNetwork = ["facebook.com";"twitter.com";"pinterest.com";"linkedin.com";"instagram.com";"youtube.com";"vk.com"]
-    socNetwork |> List.forall(fun weba -> not(url.Contains(weba)))
+    socNetwork |> List.forall(fun weba -> not(url.ToLower().Contains(weba)))
 
 let convertUrl(x:string, baseUrl:string)=
     let url =
@@ -87,9 +87,9 @@ let companyEmailBag  =  ConcurrentBag<CompanyEmail>()
 let contactPage(url:string) =
     let contactsPage = [ "contact";"kontakt";"contac";"kont";"cont";"контакт";
                          "contact-us";"contact-me";"about";"about-us";"about-me";"home";
-                         "feedback";"media";"event";"info";"mail";"sendmail"
+                         "feedback";"media";"event";"info";"mail";"sendmail";
                          //additional
-                         "ofis"; "address";]
+                         "ofis"; "address"]
 
     let isContactPage = contactsPage |> List.tryFind(fun cpw -> url.ToLower().Contains(cpw))
     match isContactPage with
