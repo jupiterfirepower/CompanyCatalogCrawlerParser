@@ -30,7 +30,7 @@ let hrefLinks (html:HtmlDocument) =
 let startHttp(x:string)=
     (x.StartsWith("http://") || x.StartsWith("https://"))
 
-let isNotImageExt(url:string) = 
+let isNotImageScriptCssExt(url:string) = 
     let imgExt = [".png";".jpg";".jpeg";".jfif";".bmp";".gif";".tiff";".tif";".webp";".js";".css"]
     imgExt |> List.forall(fun ext -> not(url.ToLower().EndsWith(ext)))
 
@@ -59,7 +59,7 @@ let FindLinksRegExp(html:string, baseUrl:string) =
     regexp.Matches(html)
     |> Seq.map(fun x -> (x.Groups.[2].Value, x.Groups.[1].Value))
     |> Seq.map (fun (name, x) -> name, convertUrl(x, baseUrl) )
-    |> Seq.filter (fun (_, url) -> url.Contains(host) && notSocialNetwork(url) && isNotImageExt(url) )
+    |> Seq.filter (fun (_, url) -> url.Contains(host) && notSocialNetwork(url) && isNotImageScriptCssExt(url) )
     |> Seq.distinct
 
 let searchLinkResults(html:HtmlDocument, baseUrl:string) =
@@ -68,7 +68,7 @@ let searchLinkResults(html:HtmlDocument, baseUrl:string) =
     let data = hrefLinks html
     data
     |> Seq.map (fun (name, x) -> name,  convertUrl(x, baseUrl) )
-    |> Seq.filter (fun (_, url) -> url.Contains(host) && notSocialNetwork(url) && isNotImageExt(url)  )
+    |> Seq.filter (fun (_, url) -> url.Contains(host) && notSocialNetwork(url) && isNotImageScriptCssExt(url) )
     |> Seq.distinct
 
 
@@ -157,7 +157,7 @@ let searchHrefResults(html:string, baseUrl:string) =
     |> Seq.map (fun x -> x.Value.TrimStart("href=".ToCharArray()).Trim("\"".ToCharArray()).TrimEnd("\">".ToCharArray()) )
     |> Seq.filter (fun x -> x.Length >= 5)
     |> Seq.filter (fun x -> not(x.ToLower().StartsWith("mailto:")))
-    |> Seq.filter (fun x -> isNotImageExt(x) && (isContactsPage(x) || (x.Contains("?") && x.Contains("topmenu"))) )
+    |> Seq.filter (fun x -> isNotImageScriptCssExt(x) && (isContactsPage(x) || (x.Contains("?") && x.Contains("topmenu"))) )
 
     |> Seq.filter (fun x -> x.EndsWith(".html") || x.EndsWith(".htm") 
                                 || ( not(x.EndsWith(".html")) && not(x.EndsWith(".htm")) && x.ToCharArray().[x.Length-4] <> '.' && x.ToCharArray().[x.Length-5] <> '.' ) 
@@ -238,7 +238,7 @@ let getHtmlAsStringAsync(url:string) =
 let asyncEmailExtractor(url:string, companyId: int, visitedExtractor:ConcurrentCollections.ConcurrentHashSet<string>, notaddtolist:bool)=
     async { 
          try
-            if not(String.IsNullOrEmpty(url)) && isNotImageExt(url) && visitedExtractor.Add(url)  then 
+            if not(String.IsNullOrEmpty(url)) && isNotImageScriptCssExt(url) && visitedExtractor.Add(url)  then 
                 printfn "asyncEmailExtractor CompanyId - %d. Url : %s" companyId url
 
                 let! html = getHtmlAsStringAsync(url)
@@ -341,7 +341,6 @@ let asyncEmailCrawler (url:string, companyId: int) =
                                                     companyEmailBag.Add({ CompanyId = companyId; Email=e }) )
 
                     if not(Seq.isEmpty mailto) && (Seq.length mailto) > 1 then
-                        //updateCompanyEmailProcessed(companyId, true)
                         updateCompanyFlags (companyId, false, true, true)
                     else
                         let linksSearch = FindLinksRegExp(html, baseUrl)
@@ -367,35 +366,28 @@ let asyncEmailCrawler (url:string, companyId: int) =
                                           )
 
                         if ( not(Seq.isEmpty dataLink) || (Seq.length data) <> 0 || not(Seq.isEmpty mailto) || not(Seq.isEmpty emails) ) then
-                             updateCompanyBadUrl (companyId, false, true, true)
                              updateCompanyFlags (companyId, false, true, true)
                         else
-                            updateCompanyBadUrl (companyId, false, true, false)
                             updateCompanyFlags (companyId, false, true, false)
 
                         //if (Seq.isEmpty dataLink) && (Seq.isEmpty data) && (Seq.isEmpty mailto) && (Seq.isEmpty emails) then
                         //    randomCrawl url companyId visitedEmailExtractor |> Async.RunSynchronously *)
                 else
                     printfn "asyncEmailCrawler bad empty url. CompanyId - %d" companyId
-                    updateCompanyBadUrl(companyId, true, true, false)
                     updateCompanyFlags(companyId, true, true, false)
             else
                 updateCompanyFlags(companyId, true, true, false)
         with
         | :? System.Net.WebException as ex ->
                 printfn "asyncEmailCrawler w url - %s error - %s" url  (trunc(ex.Message))
-                updateCompanyBadUrl (companyId, true, true, false)
                 updateCompanyFlags (companyId, true, true, false)
         | :? HttpRequestException as ex -> 
                 printfn "asyncEmailCrawler h url - %s error - %s" url (trunc(ex.Message))
-                updateCompanyBadUrl (companyId, true, true, false)
                 updateCompanyFlags (companyId, true, true, false)
         | :? System.Net.CookieException as ex ->
                 printfn "asyncEmailCrawler c url - %s error - %s" url (trunc(ex.Message))
-                updateCompanyBadUrl (companyId, true, true, false)
                 updateCompanyFlags (companyId, true, true, false)
         | _ as ex -> printfn "asyncEmailCrawler g url - %s error - %s" url (trunc(ex.Message))
-                     updateCompanyBadUrl (companyId, true, true, false)
                      updateCompanyFlags (companyId, true, true, false)
     }
 

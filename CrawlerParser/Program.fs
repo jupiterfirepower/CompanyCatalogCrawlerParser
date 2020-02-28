@@ -545,7 +545,7 @@ let main _ =
                                         |> List.ofSeq 
                                         |> Seq.distinct
                                         |> Seq.filter(fun e -> isValidEmail(e.Email))
-                                        |> Seq.filter(fun e -> isNotImageExt(e.Email) && not(e.Email.ToCharArray().[e.Email.Length-1] |> Char.IsDigit))
+                                        |> Seq.filter(fun e -> isNotImageScriptCssExt(e.Email) && not(e.Email.ToCharArray().[e.Email.Length-1] |> Char.IsDigit))
                                         |> Seq.where(fun e -> not(e.Email.ToLower().EndsWith(".html")) && not(e.Email.StartsWith("@")) )
                                         |> Seq.map(fun e -> { CompanyId = e.CompanyId; Email = trimEmailWithSubject(e.Email) } )
                                         |> Seq.filter(fun e -> e.Email.Length <= 150) 
