@@ -30,27 +30,13 @@ let hrefLinks (html:HtmlDocument) =
 let startHttp(x:string)=
     (x.StartsWith("http://") || x.StartsWith("https://"))
 
-let isNotImageExt(str:string) = 
-    (not(str.ToLower().EndsWith(".png")) 
-    && not(str.ToLower().EndsWith(".jpg")) 
-    && not(str.ToLower().EndsWith(".jpeg")) 
-    && not(str.ToLower().EndsWith(".jfif")) 
-    && not(str.ToLower().EndsWith(".bmp")) 
-    && not(str.ToLower().EndsWith(".gif")) 
-    && not(str.ToLower().EndsWith(".tiff"))
-    && not(str.ToLower().EndsWith(".tif"))
-    && not(str.ToLower().EndsWith(".webp"))
-    && not(str.ToLower().EndsWith(".js"))
-    && not(str.ToLower().EndsWith(".css")))
+let isNotImageExt(url:string) = 
+    let imgExt = [".png";".jpg";".jpeg";".jfif";".bmp";".gif";".tiff";".tif";".webp";".js";".css"]
+    imgExt |> List.forall(fun ext -> not(url.ToLower().EndsWith(ext)))
 
-let notSocialNetwork(x:string) =
-    not(x.Contains("facebook.com"))
-    && not(x.Contains("twitter.com"))
-    && not(x.Contains("pinterest.com"))
-    && not(x.Contains("linkedin.com"))
-    && not(x.Contains("instagram.com"))
-    && not(x.Contains("youtube.com"))
-    && not(x.Contains("vk.com"))
+let notSocialNetwork(url:string) =
+    let socNetwork = ["facebook.com";"twitter.com";"pinterest.com";"linkedin.com";"instagram.com";"youtube.com";"vk.com"]
+    socNetwork |> List.forall(fun weba -> not(url.Contains(weba)))
 
 let convertUrl(x:string, baseUrl:string)=
     let url =
@@ -85,6 +71,7 @@ let searchLinkResults(html:HtmlDocument, baseUrl:string) =
     |> Seq.filter (fun (_, url) -> url.Contains(host) && notSocialNetwork(url) && isNotImageExt(url)  )
     |> Seq.distinct
 
+
 type MultipleEmailRegex = Regex< @"\w+([-+.]\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*", noMethodPrefix = true >
 type EmailRegex = Regex< "(?:href)=[\"|']?(.*?)[\"|'|>]+", noMethodPrefix = true >
 
@@ -97,52 +84,29 @@ let countSubstring (where :string) (what : string) =
 
 let companyEmailBag  =  ConcurrentBag<CompanyEmail>()
 
-let contactPage(str:string) =
-    let str = str.ToLower()
-    (str.Contains("contact") 
-     || str.Contains("kontakt")
-     || str.Contains("contac")
-     || str.Contains("контакт")
-     || str.Contains("contact-us") 
-     || str.Contains("contact-me") 
-     || str.Contains("about")
-     || str.Contains("about-us")
-     || str.Contains("about-me")
-     || str.Contains("home")
-     || str.Contains("feedback")
-     || str.Contains("media")
-     || str.Contains("event")
-     || str.EndsWith("kont") || str.EndsWith("kont#")
-     || str.EndsWith("cont")
-     || str.EndsWith("addresses")
-     || str.EndsWith("address")
-     || (str.EndsWith("map") && not(str.Contains("sitemap")))
-     || (str.Contains("page") && str.EndsWith(@".html") && (str.ToCharArray().[str.Length-6] |> Char.IsDigit) )
-     || str.EndsWith("info") 
-     || str.EndsWith("mail") 
-     || str.Contains("ofis")
-     || str.EndsWith("ofis_centrov") || str.EndsWith("ofis_tverskaja")
-     || str.EndsWith("shop_content.php?coID=12")
-     || str.Contains("o-magazine")
-     || str.Contains("sendmail")
-     || str.Contains("page_id")
-     || (str.Contains("index.php?") && not(str.Contains("category")) && not(str.Contains("product")))
-     || (str.Contains("index.php?") && not(str.Contains("catalog")) && not(str.Contains("SECTION")))
-     || (str.Contains("index.php?") && str.Contains("show") && not(str.Contains("page")))
-     )
+let contactPage(url:string) =
+    let contactsPage = [ "contact";"kontakt";"contac";"kont";"cont";"контакт";
+                         "contact-us";"contact-me";"about";"about-us";"about-me";"home";
+                         "feedback";"media";"event";"info";"mail";"sendmail"
+                         //additional
+                         "ofis"; "address";]
+
+    let isContactPage = contactsPage |> List.tryFind(fun cpw -> url.ToLower().Contains(cpw))
+    match isContactPage with
+    | Some(_) -> true
+    | None -> false
 
 let isContactsPage(x:string)=
-    let contactPages = (x.Contains("contact") || x.Contains("kontakt"))
     let str = x.TrimEnd(@"/".ToCharArray())
     let lastIndex = str.LastIndexOf @"/"
     let length = str.Length - lastIndex - 1
     if lastIndex > 0 && length > 0 then
        let substr = str.Substring(lastIndex + 1, length)
-       contactPage(substr) || contactPages
+       contactPage(substr)
     elif str.Length > 4 then
-        contactPage(str) || contactPages
+       contactPage(str)
     else
-       false || contactPages
+       false
 
 let strContainsOnlyNumber (s:string) = s |> Seq.forall Char.IsDigit
 
@@ -172,44 +136,29 @@ let searchHrefResults(html:string, baseUrl:string) =
     let baseUrl = if baseUrl.EndsWith("/") then baseUrl else baseUrl+"/"
     let host = getHost(baseUrl)  
 
+    // urlNotContains candidate for use ML.NET
+    // urlNotContains(x) 
+    let urlNotContains(url:string) =
+        let words = ["?";"%";"~";"catalog";"category";"topic";"template";"brend";"node";"goods";
+        "drivers";"help";"news";"product";"promo";"sites";"service";"/info/";
+        "novosti";"konferenc";"archive";"apartments";"blog";"print";"center";"subscription";
+        "province";"item";"feed";"tag";"desc";"search";"shop";"courses";"snap";"albums";
+        "show";"photo";"presentation";"clients";"articles";"business";"project";
+        "dokument";"image";"proekt";"formy";"kursy";"lists";"biz";"directory";
+        "places";"api";"katalog";"index";"bank";"press";"css";"donate";"respond";
+        "cat";"online";"page";"comment";"stil";"design";"privacy";"watch";"store";
+        "before";"after";"brands";"rieltor";"onlayn";"cars";"options";"results";
+        "video";"conditions";"?url";"porn";"teacher";"card";"letters";"obrazovanie";
+        "arenda";"estates" ]
+        words |> List.forall(fun w -> not(url.ToLower().Contains(w)))
+
+
     EmailRegex().Matches(html)
     |> Seq.map (fun x -> x.Value.TrimStart("href=".ToCharArray()).Trim("\"".ToCharArray()).TrimEnd("\">".ToCharArray()) )
     |> Seq.filter (fun x -> x.Length >= 5)
     |> Seq.filter (fun x -> not(x.ToLower().StartsWith("mailto:")))
-    |> Seq.filter (fun x -> (not(x.Contains("?")) && not(x.Contains("%")) 
-                                && not(x.Contains("~")) && not(x.Contains("catalog")) && not(x.Contains("category")) 
-                                && not(x.Contains("topic")) && not(x.Contains("template")) && not(x.Contains("brend")) 
-                                && not(x.Contains("node")) && not(x.Contains("goods")) && not(x.Contains("drivers"))
-                                && not(x.Contains("help")) && not(x.Contains("news")) 
-                                && not(x.Contains("product")) && not(x.Contains("promo")) 
-                                && not(x.Contains("sites")) && not(x.Contains("service")) && not(x.Contains("/info/")) 
-                                && not(x.Contains("novosti")) && not(x.Contains("konferenc")) && not(x.ToLower().Contains("archive"))
-                                && not(x.Contains("apartments")) && not(x.Contains("blog")) 
-                                && not(x.Contains("print")) && not(x.Contains("center"))
-                                && not(x.Contains("subscription")) && not(x.Contains("province"))
-                                && not(x.Contains("item")) && not(x.Contains("feed")) && not(x.Contains("tag"))
-                                && not(x.Contains("desc")) && not(x.Contains("search")) && not(x.Contains("shop"))
-                                && not(x.Contains("courses")) && not(x.Contains("snap")) && not(x.Contains("albums"))
-                                && not(x.Contains("show")) && not(x.Contains("photo")) && not(x.Contains("presentation"))
-                                && not(x.Contains("clients")) && not(x.Contains("articles")) && not(x.Contains("business"))
-                                && not(x.Contains("project")) && not(x.Contains("dokument")) && not(x.Contains("image"))
-                                && not(x.Contains("proekt"))  && not(x.Contains("formy")) && not(x.Contains("kursy"))
-                                && not(x.Contains("lists"))  && not(x.Contains("biz")) && not(x.Contains("directory"))
-                                && not(x.Contains("places")) && not(x.Contains("api")) && not(x.Contains("katalog"))
-                                && not(x.Contains("index")) && not(x.Contains("bank")) && not(x.Contains("press"))
-                                && not(x.Contains("css")) && not(x.Contains("donate")) && not(x.Contains("respond"))
-                                && not(x.Contains("cat")) && not(x.Contains("online"))  && not(x.Contains("page"))
-                                && not(x.Contains("comment")) && not(x.Contains("stil")) && not(x.Contains("design"))
-                                && not(x.Contains("privacy")) && not(x.Contains("watch")) && not(x.Contains("store"))
-                                && not(x.Contains("addresses")) && not(x.Contains("before")) && not(x.Contains("after"))
-                                && not(x.Contains("brands")) && not(x.Contains("rieltor")) && not(x.Contains("onlayn"))
-                                && not(x.Contains("cars")) && not(x.Contains("options")) && not(x.Contains("results"))
-                                && not(x.Contains("video")) && not(x.Contains("conditions")) && not(x.Contains("?url"))
-                                && not(x.Contains("porn")) && not(x.Contains("teacher")) && not(x.Contains("card")) 
-                                && not(x.Contains("letters")) && not(x.Contains("obrazovanie")) && not(x.Contains("arenda"))
-                                && not(x.ToLower().Contains("estates")) && not(x.ToLower().EndsWith(".js"))
-                                && not(x.Contains("ajax"))) || (isNotImageExt(x) && isContactsPage(x)) 
-                                || (x.Contains("?") && x.Contains("topmenu")) )
+    |> Seq.filter (fun x -> isNotImageExt(x) && (isContactsPage(x) || (x.Contains("?") && x.Contains("topmenu"))) )
+
     |> Seq.filter (fun x -> x.EndsWith(".html") || x.EndsWith(".htm") 
                                 || ( not(x.EndsWith(".html")) && not(x.EndsWith(".htm")) && x.ToCharArray().[x.Length-4] <> '.' && x.ToCharArray().[x.Length-5] <> '.' ) 
                                 || isContactsPage(x)  
@@ -236,17 +185,6 @@ let searchHrefResults(html:string, baseUrl:string) =
     |> Seq.filter (fun x -> isEndWithDigits(x) |> not)
     |> Seq.filter (fun x -> x.Length <= 80) 
     |> Seq.distinct
-
-let headers = [ 
-                UserAgent "Mozilla / 5.0(Windows NT 10.0; Win64; x64) AppleWebKit / 537.36(KHTML, like Gecko) Chrome / 70.0.3538.77 Safari / 537.36"
-                Accept "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8" 
-                KeepAlive "true"
-              ]
-
-let customized (req : HttpWebRequest) = 
-       req.AllowAutoRedirect <- false
-       req.Timeout <- 4000
-       req
 
 let getHtmlAsStringAsync(url:string) = 
     let linkRedirection = ConcurrentCollections.ConcurrentHashSet<string>()
@@ -361,7 +299,7 @@ let rec randomCrawl url companyId visitedEmailExtractor =
           let html = if not (String.IsNullOrEmpty(htmlData)) then
                           htmlData
                      else  
-                          Http.RequestString(url, headers = headers, customizeHttpRequest = customized)
+                          getHtmlAsStringAsync(url) |> Async.RunSynchronously
           printfn "randomCrawl CompanyId - %d. Url : %s" companyId url
           emailGraber(url, html, companyId, visitedEmailGraber, visitedEmailExtractor )
           for link in searchHrefResults(html, baseUrl) do
