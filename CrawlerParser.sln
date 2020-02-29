@@ -5,6 +5,10 @@ VisualStudioVersion = 16.0.29306.81
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "CrawlerParser", "CrawlerParser\CrawlerParser.fsproj", "{095C5339-A440-40F7-8891-8E240DA95671}"
 EndProject
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "ConsoleAppMailer", "ConsoleAppMailer\ConsoleAppMailer.fsproj", "{6B97FE96-BD65-4BD8-82F5-3FEF985539A3}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "DataStructure", "DataStructure\DataStructure.fsproj", "{F41FF90E-95EE-4BCA-8631-26CB2B1B241F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +19,14 @@ Global
 		{095C5339-A440-40F7-8891-8E240DA95671}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{095C5339-A440-40F7-8891-8E240DA95671}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{095C5339-A440-40F7-8891-8E240DA95671}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6B97FE96-BD65-4BD8-82F5-3FEF985539A3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6B97FE96-BD65-4BD8-82F5-3FEF985539A3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6B97FE96-BD65-4BD8-82F5-3FEF985539A3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6B97FE96-BD65-4BD8-82F5-3FEF985539A3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F41FF90E-95EE-4BCA-8631-26CB2B1B241F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F41FF90E-95EE-4BCA-8631-26CB2B1B241F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F41FF90E-95EE-4BCA-8631-26CB2B1B241F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F41FF90E-95EE-4BCA-8631-26CB2B1B241F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
